@@ -17,7 +17,7 @@
 
 static char buf[N];
 
-/* Sine lookup table: 1.8.7 fixed-point representation (0-90 degrees) */
+/* Fixed-point sine table for 0-90 degrees. */
 static const int16_t sin_quad[65] = {
     0, 6, 12, 18, 25, 31, 37, 43, 49, 56, 62, 68, 74, 80, 86, 92,
     97, 103, 109, 115, 120, 126, 131, 136, 142, 147, 152, 157, 162, 167, 171, 176,
@@ -48,11 +48,7 @@ static const char face_char[6] = {'@', '#', '*', '+', '=', '%'};
 
 #define SWAP(a, b) { int32_t t = a; a = b; b = t; }
 
-/*
- * Horizontal Span Fill (constant character)
- * Fills a horizontal segment in the framebuffer with a single glyph.
- * No depth interpolation needed.
- */
+/* Fill a horizontal span with one character. */
 static void draw_span(int y, int32_t xA, int32_t xB, char c) {
     if (xA > xB) SWAP(xA, xB);
 
@@ -69,10 +65,7 @@ static void draw_span(int y, int32_t xA, int32_t xB, char c) {
     }
 }
 
-/*
- * Triangle Rasterizer (flat fill, no depth)
- * Sorts vertices by Y, then draws horizontal spans with the given character.
- */
+/* Rasterize a flat-shaded triangle. */
 static void rasterize_tri(int x1, int y1,
                           int x2, int y2,
                           int x3, int y3,
@@ -132,7 +125,7 @@ int main() {
 
         clear_buffer();
 
-        /* Vertex Transformation: Rotation -> Translation -> Projection */
+        /* Rotate, translate, and project each vertex. */
         for (int i = 0; i < 8; i++) {
             int32_t X = verts[i][0] * S, Y = verts[i][1] * S, Z = verts[i][2] * S;
             int16_t x1 = ((int32_t)X * cb - (int32_t)Z * sb) >> 8;
@@ -146,16 +139,16 @@ int main() {
             py[i] = H / 2 + ((int32_t)y1 * K) / (z2 * 2);
         }
 
-        /* Draw all visible faces – backface culling only, no depth sort */
+        /* Cull backfaces and draw the visible faces. */
         for (int f = 0; f < 6; f++) {
             int v0 = faces[f][0], v1 = faces[f][1], v2 = faces[f][2], v3 = faces[f][3];
 
-            /* Screen-space cross product for culling */
+            /* Use the projected winding to cull faces. */
             if ((px[v1]-px[v0]) * (py[v2]-py[v0]) -
                 (py[v1]-py[v0]) * (px[v2]-px[v0]) < 0)
                 continue;
 
-            /* Split each quad into two triangles and draw with face character */
+            /* Split each quad into two triangles. */
             rasterize_tri(px[v0], py[v0],
                           px[v1], py[v1],
                           px[v2], py[v2], face_char[f]);
